@@ -8,7 +8,6 @@
   {% csrf_token %}
   {{ form.non_field_errors }}
 
-  <!-- 社員番号 -->
   <div class="field">
     <div class="control">
       {{ form.code }}
@@ -16,7 +15,6 @@
     <p class="help is-danger">{{ form.code.errors }}</p>
   </div>
 
-  <!-- 氏名 -->
   <div class="field">
     <div class="control">
       {{ form.name }}
@@ -24,8 +22,7 @@
     <p class="help is-danger">{{ form.name.errors }}</p>
   </div>
 
-  <!-- hidden の確認フラグ（画面には出ない） -->
-  {{ form.confirm }}
+  {{ form.confirm }}  {# hidden #}
 
   <div class="field">
     <button type="submit" class="button is-danger">削除する</button>
