@@ -1,0 +1,19 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}従業員 Excel インポート{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="box">
+  {% csrf_token %}
+
+  <div class="field">
+    <label class="label">{{ form.file.label }}</label>
+    <div class="control">
+      {{ form.file }}   
+    </div>
+    <p class="help">{{ form.file.help_text }}</p>
+  </div>
+
+  <button class="button is-primary">アップロード</button>
+</form>
+{% endblock %}
