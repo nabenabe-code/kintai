@@ -46,13 +46,12 @@
 ・勤怠一覧・検索（社員番号/氏名で絞り込み）Excelインポート・ダウンロード可能 <img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/bb58b965-6480-4ae1-846c-e04359ee679e" /> 
 -日付による出勤している従業員が確認できる仕組みになっている。
 
-・従業員登録（社員番号・氏名・時給）/ Eecelインポート・ダウンロード可能
-- 各従業員の名前や時給などのデータを登録する。
+・従業員登録・削除機能（社員番号・氏名・時給）/ Eecelインポート・ダウンロード可能
+- 各従業員の名前や時給などのデータを登録する。<img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/167726aa-d53c-4607-9241-394edbcaa154" />
 - この機能によってユーザー（従業員）ごとにデータを管理することが可能になるので、店長は各従業員のデータをアプリ内で一元管理できるようになる。
   
-
-・シフト登録/ <img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/e64c36b6-15ec-4994-8b7e-4d874e62fc05" />
-
+シフト登録機能・/Excelインポート・ダウンロード可能 <img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/e64c36b6-15ec-4994-8b7e-4d874e62fc05" />
+-当日などの突発的な従業員のシフト変更にも対応でき、そのままExcelでインポートの可能なため週などで大幅な変更があったばあいでも修正がしやすい。
 
 ・Excelインポート機能<img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/6e970779-149c-42e6-a28d-23d6c7bcf081" />
 - アプリ内での変更も可能だが、Excelでの作業が慣れているユーザーや印刷などの作業があることも踏まえ、相互的にDBに登録できるようにしている。
@@ -60,9 +59,11 @@
   
 ・Excelダウンロード（従業員 / シフト / 勤怠）<img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/6e970779-149c-42e6-a28d-23d6c7bcf081" />
 
+利用方法
 
 
 
+renderのほうは不具合が修正中。
 
 
 使用技術
