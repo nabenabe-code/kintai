@@ -8,7 +8,8 @@
 
 
 ＃主な機能
-・打刻（出勤・しごとをはじめる / 退勤・しごとをおわる）
+
+・打刻（出勤・しごとをはじめる / 退勤・しごとをおわる） <img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/8ffd109a-bc36-4f09-8368-42fcacfb513d" />
 
 ・勤怠一覧・検索（社員番号/氏名/備考で絞り込み）
 
