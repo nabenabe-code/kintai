@@ -1,0 +1,22 @@
+{% extends 'attendance/base.html' %}
+{% block title %}シフト取込{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="box">
+  {% csrf_token %}
+  <div class="field">
+    <label class="label">{{ form.file.label }}</label>
+    <div class="control">
+      {{ form.file }}
+    </div>
+    <p class="help">{{ form.file.help_text }}</p>
+  </div>
+  <button class="button is-primary">アップロード</button>
+</form>
+
+<article class="message is-info mt-4">
+  <div class="message-body">
+    見本ヘッダー: <code>code, date, start, end, note</code><br>
+    例: <code>A001, 2025-08-20, 09:00, 18:00, 早番</code>
+  </div>
+</article>
+{% endblock %}

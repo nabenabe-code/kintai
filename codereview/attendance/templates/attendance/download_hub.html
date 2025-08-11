@@ -1,0 +1,12 @@
+{% extends 'attendance/base.html' %}
+{% block title %}ダウンロード{% endblock %}
+{% block content %}
+<div class="box">
+  <h2 class="title is-5">Excel ダウンロード</h2>
+  <div class="buttons">
+    <a class="button is-link" href="{% url 'employee_export' %}">従業員ダウンロード</a>
+    <a class="button is-info" href="{% url 'shift_export' %}">シフトダウンロード</a>
+    <a class="button is-success" href="{% url 'attendance_export' %}">勤怠ダウンロード</a>
+  </div>
+</div>
+{% endblock %}

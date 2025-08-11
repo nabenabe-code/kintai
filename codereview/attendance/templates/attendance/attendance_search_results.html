@@ -1,0 +1,6 @@
+{% extends 'attendance/base.html' %}
+{% block title %}検索結果{% endblock %}
+{% block content %}
+<p class='subtitle'>検索ワード: '{{ query }}'</p>
+{% include 'attendance/attendance_list.html' with attendances=attendances %}
+{% endblock %}
