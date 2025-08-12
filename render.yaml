@@ -26,3 +26,4 @@ services:
         fromDatabase:
           name: kintai-db
           property: connectionString
+

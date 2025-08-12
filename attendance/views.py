@@ -64,19 +64,36 @@ def attendance_search(request):
 
 
 def employee_register(request):
-    form = EmployeeForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, '従業員を登録しました。')
-        return redirect('employee_register')
-    return render(request, 'attendance/employee_register.html', {'form': form})
+    """
+    従業員の「登録」と「削除」を1画面で提供。
+    - 登録: EmployeeForm（ボタン name='add-submit'）
+    - 削除: EmployeeDeleteForm（ボタン name='del-submit'）
+    削除は code+name+hourly_rate が一致する在籍者だけ在籍OFFにする（論理削除）。
+    """
+    form_add = EmployeeForm(request.POST or None, prefix='add')
+    form_del = EmployeeDeleteForm(request.POST or None, prefix='del')
 
+    if request.method == 'POST':
+        # 追加
+        if 'add-submit' in request.POST and form_add.is_valid():
+            form_add.save()
+            messages.success(request, '従業員を登録しました。')
+            return redirect('employee_register')
+
+        # 削除
+        if 'del-submit' in request.POST and form_del.is_valid():
+            emp = form_del.cleaned_data['employee']  # forms.clean() で解決済み
+            emp.is_active = False
+            emp.save(update_fields=['is_active'])
+            messages.success(request, f'{emp.code}（{emp.name}）を在籍OFFにしました。')
+            return redirect('employee_register')
+
+    return render(request, 'attendance/employee_register.html', {
+        'form': form_add,
+        'delete_form': form_del,
+    })
 
 def employee_delete(request):
-    """
-    従業員の論理削除（在籍OFFのみ）。
-    社員番号と氏名が一致する在籍者だけ削除可能。
-    """
     form = EmployeeDeleteForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         emp = form.cleaned_data['employee']  # forms.clean() で解決済み

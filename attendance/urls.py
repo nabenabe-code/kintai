@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     PunchView,
     attendance_list, attendance_search, employee_register,
+    employee_register, employee_delete,
     shift_list, shift_create, shift_import,
     import_hub, employee_import,
     download_hub, employee_export_excel, shift_export_excel,
@@ -24,11 +25,11 @@ urlpatterns = [
     # Template: attendance/attendance_search_results.html
     path('search/', attendance_search, name='attendance_search'),
 
-    # 従業員 登録／削除 ページ（1画面で登録と削除に対応）
+    # 従業員 登録／削除 ページ
     # View: employee_register
     # Template: attendance/employee_register.html
     path('employee/register/', employee_register, name='employee_register'),
-
+    path('employee/delete/', employee_delete, name='employee_delete'),
     # シフト一覧（?month=YYYY-MM, ?emp= で絞り込み）
     # View: shift_list
     # Template: attendance/shift_list.html
@@ -59,17 +60,17 @@ urlpatterns = [
     # Template: attendance/download_hub.html
     path('download/', download_hub, name='download_hub'),
 
-    # 従業員一覧Excelダウンロード（テンプレートは使わず xlsx を返す）
+    # 従業員一覧Excelダウンロード
     # View: employee_export_excel
     # Response: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     path('download/employees/', employee_export_excel, name='employee_export'),
 
-    # シフト一覧Excelダウンロード（テンプレートは使わず xlsx を返す）
+    # シフト一覧Excelダウンロード
     # View: shift_export_excel
     # Response: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     path('download/shifts/', shift_export_excel, name='shift_export'),
 
-    # 勤怠一覧Excelダウンロード（テンプレートは使わず xlsx を返す）
+    # 勤怠一覧Excelダウンロード
     # View: attendance_export_excel
     # Response: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     path('export/', attendance_export_excel, name='attendance_export'),
