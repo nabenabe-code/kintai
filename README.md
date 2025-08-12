@@ -53,7 +53,7 @@
 シフト登録機能・/Excelインポート・ダウンロード可能 <img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/e64c36b6-15ec-4994-8b7e-4d874e62fc05" />
 -当日などの突発的な従業員のシフト変更にも対応でき、そのままExcelでインポートの可能なため週などで大幅な変更があったばあいでも修正がしやすい。
 
-・Excelインポート機能<img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/6e970779-149c-42e6-a28d-23d6c7bcf081" />
+・Excelインポート機能<img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/a7d85a12-72cb-4205-8943-de9245b46821" />
 - アプリ内での変更も可能だが、Excelでの作業が慣れているユーザーや印刷などの作業があることも踏まえ、相互的にDBに登録できるようにしている。
 
   
