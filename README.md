@@ -61,7 +61,9 @@
 ・Excelダウンロード（従業員 / シフト / 勤怠）<img width="1920" height="1008" alt="Image" src="https://github.com/user-attachments/assets/6e970779-149c-42e6-a28d-23d6c7bcf081" />
 
 利用方法
+kintai-jleg.onrender.com 
 
+こちらからアクセスできます。
 
 
 使用技術
