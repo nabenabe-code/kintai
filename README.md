@@ -69,6 +69,6 @@ kintai-jleg.onrender.com
 使用技術
 Backend: Python / Django（SQLite ローカル、Render では Postgres も可）
 
-UI: Django Template + Bulma（CDN）
+使用フレームワーク: Django Template + Bulma（CDN）
 
 Excel: openpyxl（取込/出力）
