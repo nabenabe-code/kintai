@@ -1,62 +1,85 @@
-{% extends 'attendance/base.html' %}
-{% block title %}シフト一覧{% endblock %}
+{% extends "attendance/base.html" %}
+{% block title %}シフト（日付で検索）{% endblock %}
 {% block content %}
+<h1 class="title">シフト（日付で検索）</h1>
 
-<div class="box">
-  <!-- 検索フォーム -->
-  <form method="get" class="mb-4">
-    <div class="field is-grouped is-align-items-flex-end" style="gap:1rem; flex-wrap:wrap;">
-      <div class="field">
-        <label class="label">月 (YYYY-MM)</label>
-        <div class="control">
-          <input class="input" type="month" name="month" value="{{ month_value }}">
-        </div>
+<form method="get" class="box" action="{% url 'shift_list' %}">
+  <div class="columns is-multiline is-vcentered">
+    <div class="column is-4">
+      <label class="label">日付</label>
+      <div class="control">
+        <input class="input" type="date" name="date" value="{{ date_value }}" required>
       </div>
-      <div class="field">
-        <label class="label">従業員検索（コード/氏名）</label>
-        <div class="control">
-          <input class="input" type="text" name="emp" value="{{ emp_query }}" placeholder="A001 / 田中">
-        </div>
+      <p class="help">形式: yyyy-mm-dd（例: 2025-08-13）</p>
+    </div>
+    <div class="column is-4">
+      <label class="label">社員検索</label>
+      <div class="control">
+        <input class="input" type="text" name="emp" value="{{ emp_query }}" placeholder="社員番号 or 氏名">
       </div>
-      <div class="field">
-        <div class="control" style="margin-top:1.8rem">
-          <button class="button is-primary">検索</button>
-        </div>
+      <p class="help">部分一致で検索します</p>
+    </div>
+    <div class="column is-4">
+      <label class="label">&nbsp;</label>
+      <div class="buttons">
+        <button class="button is-link" type="submit">検索</button>
+        <a class="button" href="{% url 'shift_list' %}?date={{ prev_date }}&emp={{ emp_query }}">← 前日</a>
+        <a class="button" href="{% url 'shift_list' %}?date={{ next_date }}&emp={{ emp_query }}">翌日 →</a>
+        <a class="button is-light" href="{% url 'shift_list' %}">今日</a>
       </div>
     </div>
-  </form>
+  </div>
+</form>
 
-  <!-- 見出し：YYYY-MM（数字のみ） -->
-  <h2 class="title is-5">シフト一覧：{{ ym }}</h2>
-
-  <table class="table is-fullwidth is-striped is-hoverable">
-    <thead>
-      <tr>
-        <th>日付</th>
-        <th>社員番号</th>
-        <th>氏名</th>
-        <th>開始</th>
-        <th>終了</th>
-        <th>備考</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for s in shifts %}
-      <tr>
-        <td>{{ s.date|date:"Y/m/d" }}</td>
-        <td>{{ s.employee.code }}</td>
-        <td>{{ s.employee.name }}</td>
-        <td>{{ s.start_time|time:"H:i" }}</td>
-        <td>{{ s.end_time|time:"H:i" }}</td>
-        <td>{{ s.note }}</td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="6" class="has-text-centered">該当するシフトはありません。</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="notification is-info is-light">
+  <strong>{{ selected_date|date:"Y-m-d" }}</strong> の出勤予定：
+  <strong>{{ count_employees }}</strong> 名 / シフト <strong>{{ count_shifts }}</strong> 件
 </div>
 
+<div class="box">
+  <h2 class="subtitle">出勤予定の社員</h2>
+  {% if employees %}
+    <div class="tags">
+      {% for e in employees %}
+        <span class="tag is-primary">{{ e.code }} {{ e.name }}</span>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>該当する社員はいません。</p>
+  {% endif %}
+</div>
+
+<div class="box">
+  <h2 class="subtitle">シフト一覧</h2>
+  {% if shifts %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>社員番号</th>
+            <th>氏名</th>
+            <th>開始</th>
+            <th>終了</th>
+            <th>備考</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in shifts %}
+          <tr>
+            <td>{{ s.date|date:"Y-m-d" }}</td>
+            <td>{{ s.employee.code }}</td>
+            <td>{{ s.employee.name }}</td>
+            <td>{% if s.start_time %}{{ s.start_time|time:"H:i" }}{% endif %}</td>
+            <td>{% if s.end_time %}{{ s.end_time|time:"H:i" }}{% endif %}</td>
+            <td>{{ s.note }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>該当するシフトはありません。</p>
+  {% endif %}
+</div>
 {% endblock %}

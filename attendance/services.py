@@ -1,4 +1,3 @@
-# services.py
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from typing import Tuple
@@ -139,3 +138,28 @@ class ShiftImporter:
             updated += int(not is_new)
 
         return created, updated, skipped
+
+try:
+    EmployeeExcelImporter  # すでにあれば何もしない
+except NameError:
+    try:
+        EmployeeExcelImporter = EmployeeImporter  # 既存名→旧名の別名
+    except NameError:
+        pass
+
+try:
+    ShiftExcelImporter
+except NameError:
+    try:
+        ShiftExcelImporter = ShiftImporter
+    except NameError:
+        pass
+
+# __all__ を使っているなら公開名に追加（なければ無視される）
+try:
+    __all__
+except NameError:
+    __all__ = []
+for _n in ["EmployeeExcelImporter", "ShiftExcelImporter"]:
+    if _n not in __all__:
+        __all__.append(_n)

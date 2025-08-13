@@ -1,19 +1,24 @@
-{% extends 'attendance/base.html' %}
-
-{% block title %}従業員 Excel インポート{% endblock %}
-
+{% extends "attendance/base.html" %}
+{% block title %}従業員インポート{% endblock %}
 {% block content %}
-<form method="post" enctype="multipart/form-data" class="box">
-  {% csrf_token %}
-
-  <div class="field">
-    <label class="label">{{ form.file.label }}</label>
-    <div class="control">
-      {{ form.file }}   
+<div class="is-narrow-form">
+  <h1 class="title">従業員インポート（.xlsx）</h1>
+  <form method="post" enctype="multipart/form-data" class="box">
+    {% csrf_token %}
+    <div class="field">
+      <label class="label">ファイル</label>
+      <div class="control">
+        {{ form.file }}
+      </div>
+      {% if form.file.errors %}
+      <p class="help is-danger">{{ form.file.errors.0 }}</p>
+      {% endif %}
     </div>
-    <p class="help">{{ form.file.help_text }}</p>
-  </div>
-
-  <button class="button is-primary">アップロード</button>
-</form>
+    <div class="buttons">
+      <button class="button is-link" type="submit">取り込む</button>
+      <a class="button is-light" href="{% url 'import_hub' %}">インポートハブへ</a>
+    </div>
+    <p class="help">列: 社員番号 / 氏名 / 時給（1行目はヘッダ）</p>
+  </form>
+</div>
 {% endblock %}

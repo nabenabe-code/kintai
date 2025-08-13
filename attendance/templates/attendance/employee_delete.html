@@ -1,31 +1,20 @@
-{% extends 'attendance/base.html' %}
-{% block title %}従業員の削除{% endblock %}
-
+{% extends "attendance/base.html" %}
+{% block title %}従業員削除{% endblock %}
 {% block content %}
-<h1 class="title">従業員の削除</h1>
-
-<form method="post" class="box">
-  {% csrf_token %}
-  {{ form.non_field_errors }}
-
-  <div class="field">
-    <div class="control">
-      {{ form.code }}
+<div class="is-narrow-form">
+  <h1 class="title">従業員削除</h1>
+  <form method="post" class="box">
+    {% csrf_token %}
+    <div class="field">
+      <label class="label">対象</label>
+      <div class="control">{{ form.employee }}</div>
+      {{ form.employee.errors }}
     </div>
-    <p class="help is-danger">{{ form.code.errors }}</p>
-  </div>
-
-  <div class="field">
-    <div class="control">
-      {{ form.name }}
+    <div class="notification is-warning is-light">
     </div>
-    <p class="help is-danger">{{ form.name.errors }}</p>
-  </div>
-
-  {{ form.confirm }}  {# hidden #}
-
-  <div class="field">
-    <button type="submit" class="button is-danger">削除する</button>
-  </div>
-</form>
+    <div class="buttons">
+      <button class="button is-danger" type="submit">在籍OFFにする</button>
+    </div>
+  </form>
+</div>
 {% endblock %}
