@@ -6,7 +6,9 @@
   {{ form.as_p }}
   <div class="buttons">
     <button class="button is-link" type="submit">検索</button>
-    <a class="button is-small" href="{% url 'attendance:export_shifts' %}{% if request.GET.date %}?date={{ request.GET.date }}{% endif %}">Excelダウンロード</a>
+
+    
+     <a class="button is-small" href="{% url 'attendance:export_shifts' %}{% if request.GET.date %}?date={{ request.GET.date }}{% endif %}">Excelダウンロード</a>
   </div>
 </form>
 <table class="table is-fullwidth is-striped">
