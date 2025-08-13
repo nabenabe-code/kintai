@@ -1,141 +1,283 @@
-# services.py
+from __future__ import annotations
+
 from dataclasses import dataclass
-from datetime import date, datetime, time
-from typing import Tuple
+from datetime import datetime, time
+from io import BytesIO
+from typing import Iterable, List, Tuple
 
+from django.db import transaction
 from django.utils import timezone
-from openpyxl import load_workbook
 
-from .models import Employee, Attendance, Shift
+from openpyxl import Workbook, load_workbook
 
-
-# ── 打刻ユースケース ─────────────────────────
+from .models import Attendance, Employee, Shift
 @dataclass
-class PunchService:
-    employee: Employee
+class ImportResult:
+    created: int = 0
+    updated: int = 0
+    errors: List[str] = None
 
-    def today(self) -> Attendance:
-        d = timezone.localdate()
-        att, _ = Attendance.objects.get_or_create(employee=self.employee, work_date=d)
+    def __post_init__(self):
+        if self.errors is None:
+            self.errors = []
+
+
+class PunchService: #打刻
+    def __init__(self, *, employee: Employee, note: str | None = None):
+        self.employee = employee
+        self.note = (note or "").strip()
+
+    def _now(self):
+        return timezone.localtime()
+
+    def _today(self):
+        return timezone.localdate()
+
+    def _get_or_create_today(self) -> Attendance:
+        att, _ = Attendance.objects.get_or_create(
+            employee=self.employee,
+            work_date=self._today(),
+        )
+        if self.note:
+            att.note = (f"{att.note} / {self.note}".strip(" /")) if att.note else self.note
         return att
 
-    def clock_in(self, now: time) -> None:
-        self.today().clock_in(now)
+    @transaction.atomic
+    def punch_in(self) -> Attendance:
+        att = self._get_or_create_today()
+        if att.time_in:
+            raise ValueError("すでに本日の出勤が登録されています。")
+        att.time_in = self._now()
+        att.save(update_fields=["time_in", "note"])
+        return att
 
-    def clock_out(self, now: time) -> None:
-        self.today().clock_out(now)
+    @transaction.atomic
+    def punch_out(self) -> Attendance:
+        att = self._get_or_create_today()
+        if not att.time_in:
+            raise ValueError("出勤が先に必要です。")
+        if att.time_out:
+            raise ValueError("すでに本日の退勤が登録されています。")
+        # 退勤は出勤以降であることを簡易チェック
+        now = self._now()
+        if now < att.time_in:
+            raise ValueError("退勤が出勤より前になっています。端末時刻を確認してください。")
+        att.time_out = now
+        att.save(update_fields=["time_out", "note"])
+        return att
+class EmployeeExcelImporter: #従業員インポート
+    REQUIRED = ("code", "hourly_rate")
 
+    def __init__(self, file_obj):
+        self.file_obj = file_obj
 
-# ── Excel 読み込みの小ヘルパ ───────────────
-def _to_date(v) -> date | None:
-    if isinstance(v, date) and not isinstance(v, datetime):
-        return v
-    if isinstance(v, datetime):
-        return v.date()
-    if isinstance(v, str):
-        for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
-            try:
-                return datetime.strptime(v.strip(), fmt).date()
-            except ValueError:
-                continue
-    return None
+    def _normalize_headers(self, headers: Iterable[str]) -> List[str]:
+        return [str(h or "").strip().lower() for h in headers]
 
-def _to_time(v) -> time | None:
-    if isinstance(v, time):
-        return v
-    if isinstance(v, datetime):
-        return v.time()
-    if isinstance(v, str):
-        for fmt in ("%H:%M", "%H:%M:%S"):
-            try:
-                return datetime.strptime(v.strip(), fmt).time()
-            except ValueError:
-                continue
-    return None
-
-
-# ── 従業員インポート ───────────────────────
-class EmployeeImporter:
-    REQUIRED = {'code', 'hourly_rate'}
-
-    def run(self, file) -> Tuple[int, int, int]:
-        wb = load_workbook(filename=file, data_only=True)
+    def run(self) -> ImportResult:
+        wb = load_workbook(self.file_obj, data_only=True)
         ws = wb.active
-        header = {str(c.value).strip(): i for i, c in enumerate(ws[1], 1) if c.value is not None}
-        names = {k.lower(): i for k, i in header.items()}
-        if not self.REQUIRED.issubset(names.keys()):
-            raise ValueError('必須列 code / hourly_rate がありません。')
+        result = ImportResult()
 
-        created = updated = skipped = 0
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            raw_code = row[names['code'] - 1] if names.get('code') else None
-            code = (str(raw_code).strip() if raw_code is not None else '')
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            result.errors.append("シートが空です。")
+            return result
+
+        headers = self._normalize_headers(rows[0])
+        for r in self.REQUIRED:
+            if r not in headers:
+                result.errors.append(f"必須列がありません: {r}")
+                return result
+
+        idx_code = headers.index("code")
+        idx_rate = headers.index("hourly_rate")
+        idx_name = headers.index("name") if "name" in headers else None
+
+        for i, row in enumerate(rows[1:], start=2):
+            code = str(row[idx_code]).strip() if row[idx_code] is not None else ""
+            rate_val = row[idx_rate]
+            name = (str(row[idx_name]).strip() if (idx_name is not None and row[idx_name] is not None) else "")
+
             if not code:
-                skipped += 1
+                result.errors.append(f"{i}行目: code が空です")
                 continue
 
-            name = row[names['name'] - 1] if names.get('name') else ''
-            hourly = row[names['hourly_rate'] - 1]
             try:
-                hourly_val = float(hourly)
-            except (TypeError, ValueError):
-                skipped += 1
+                hourly_rate = float(rate_val)
+            except Exception:
+                result.errors.append(f"{i}行目: hourly_rate を数値にできません")
                 continue
 
-            emp, is_new = Employee.objects.get_or_create(code=code)
-            if name:
-                emp.name = str(name)
-            emp.hourly_rate = hourly_val
-            emp.is_active = True  # 取込時は在籍ONに戻す運用
-            emp.save()
-            created += int(is_new)
-            updated += int(not is_new)
+            obj, created = Employee.objects.update_or_create(
+                code=code,
+                defaults={"name": name, "hourly_rate": hourly_rate, "is_active": True},
+            )
+            if created:
+                result.created += 1
+            else:
+                result.updated += 1
 
-        return created, updated, skipped
+        return result
 
 
-# ── シフトインポート ───────────────────────
-class ShiftImporter:
-    REQUIRED = {'code', 'date', 'start', 'end'}
+class ShiftExcelImporter: #シフトインポート
 
-    def run(self, file) -> Tuple[int, int, int]:
-        wb = load_workbook(filename=file, data_only=True)
+    REQUIRED = ("code", "date", "start", "end")
+
+    def __init__(self, file_obj):
+        self.file_obj = file_obj
+
+    def _normalize_headers(self, headers: Iterable[str]) -> List[str]:
+        return [str(h or "").strip().lower() for h in headers]
+
+    def _parse_time(self, s) -> time:
+        if isinstance(s, time):
+            return s
+        if isinstance(s, datetime):
+            return s.time().replace(second=0, microsecond=0)
+        s = str(s)
+        hh, mm = s.split(":")
+        return time(hour=int(hh), minute=int(mm))
+
+    def run(self) -> ImportResult:
+        wb = load_workbook(self.file_obj, data_only=True)
         ws = wb.active
-        header = {str(c.value).strip(): i for i, c in enumerate(ws[1], 1) if c.value is not None}
-        names = {k.lower(): i for k, i in header.items()}
-        if not self.REQUIRED.issubset(names.keys()):
-            raise ValueError('必須列 code / date / start / end が見つかりません。')
+        result = ImportResult()
 
-        c_code = names['code']; c_date = names['date']; c_start = names['start']; c_end = names['end']
-        c_note = names.get('note')
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            result.errors.append("シートが空です。")
+            return result
 
-        created = updated = skipped = 0
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            raw_code = row[c_code - 1]
-            code = (str(raw_code).strip() if raw_code is not None else '')
+        headers = self._normalize_headers(rows[0])
+        for r in self.REQUIRED:
+            if r not in headers:
+                result.errors.append(f"必須列がありません: {r}")
+                return result
+
+        idx_code = headers.index("code")
+        idx_date = headers.index("date")
+        idx_start = headers.index("start")
+        idx_end = headers.index("end")
+        idx_note = headers.index("note") if "note" in headers else None
+
+        for i, row in enumerate(rows[1:], start=2):
+            code = str(row[idx_code]).strip() if row[idx_code] is not None else ""
+            raw_date = row[idx_date]
+            raw_start = row[idx_start]
+            raw_end = row[idx_end]
+            note = (str(row[idx_note]).strip() if (idx_note is not None and row[idx_note] is not None) else "")
+
             if not code:
-                skipped += 1
+                result.errors.append(f"{i}行目: code が空です")
                 continue
+
+            # 従業員の存在確認
             try:
-                emp = Employee.objects.get(code=code)
+                emp = Employee.objects.get(code=code, is_active=True)
             except Employee.DoesNotExist:
-                skipped += 1
+                result.errors.append(f"{i}行目: code={code} の従業員が見つかりません（在籍OFFの可能性含む）")
                 continue
 
-            d = _to_date(row[c_date - 1])
-            st = _to_time(row[c_start - 1])
-            ed = _to_time(row[c_end - 1])
-            note = row[c_note - 1] if c_note else ''
-            if not (d and st and ed):
-                skipped += 1
+            # 日付/時刻の変換
+            try:
+                if isinstance(raw_date, datetime):
+                    work_date = raw_date.date()
+                else:
+                    # 文字列 "YYYY-MM-DD" を想定
+                    work_date = datetime.strptime(str(raw_date), "%Y-%m-%d").date()
+
+                start_t = self._parse_time(raw_start)
+                end_t = self._parse_time(raw_end)
+            except Exception:
+                result.errors.append(f"{i}行目: 日付/時刻の形式が不正です")
                 continue
 
-            obj, is_new = Shift.objects.get_or_create(employee=emp, date=d)
-            obj.start_time = st
-            obj.end_time = ed
-            obj.note = str(note or '')
-            obj.save()
-            created += int(is_new)
-            updated += int(not is_new)
+            obj, created = Shift.objects.update_or_create(
+                employee=emp,
+                work_date=work_date,
+                defaults={"start_time": start_t, "end_time": end_t, "note": note},
+            )
+            if created:
+                result.created += 1
+            else:
+                result.updated += 1
 
-        return created, updated, skipped
+        return result
+
+class ExcelExporter: # Excelエクスポート
+
+    @staticmethod
+    def _autosize(ws):
+        for col in ws.columns:
+            max_len = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                try:
+                    v = str(cell.value) if cell.value is not None else ""
+                    max_len = max(max_len, len(v))
+                except Exception:
+                    pass
+            ws.column_dimensions[col_letter].width = max(10, min(40, max_len + 2))
+
+    @staticmethod
+    def _to_bytes(wb: Workbook) -> bytes:
+        buf = BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    @classmethod
+    def employees(cls) -> Tuple[str, bytes]:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "employees"
+        ws.append(["社員番号", "氏名", "時給"])
+        for e in Employee.objects.all().order_by("code"):
+            ws.append([e.code, e.name, e.hourly_rate])
+        cls._autosize(ws)
+        return ("employees.xlsx", cls._to_bytes(wb))
+
+    @classmethod
+    def shifts(cls) -> Tuple[str, bytes]:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "shifts"
+        ws.append(["日付", "社員番号", "氏名", "開始", "終了", "備考"])
+        qs = Shift.objects.select_related("employee").order_by("work_date", "employee__code")
+        for s in qs:
+            ws.append([
+                s.work_date.isoformat(),
+                s.employee.code,
+                s.employee.name,
+                s.start_time.strftime("%H:%M") if s.start_time else "",
+                s.end_time.strftime("%H:%M") if s.end_time else "",
+                s.note or "",
+            ])
+        cls._autosize(ws)
+        return ("shifts.xlsx", cls._to_bytes(wb))
+
+    @classmethod
+    def attendance(cls) -> Tuple[str, bytes]:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "attendance"
+        ws.append(["勤務日", "社員番号", "氏名", "出勤", "退勤", "勤務時間[h]", "時給", "支給額", "備考"])
+        qs = Attendance.objects.select_related("employee").order_by("work_date", "employee__code")
+        for a in qs:
+            hours = (a.work_hours or 0.0)
+            rate = a.employee.hourly_rate or 0.0
+            pay = round(hours * rate, 2)
+            ws.append([
+                a.work_date.isoformat(),
+                a.employee.code,
+                a.employee.name,
+                a.time_in.strftime("%H:%M") if a.time_in else "",
+                a.time_out.strftime("%H:%M") if a.time_out else "",
+                hours,
+                rate,
+                pay,
+                a.note or "",
+            ])
+        cls._autosize(ws)
+        return ("attendance.xlsx", cls._to_bytes(wb))
