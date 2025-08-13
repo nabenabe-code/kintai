@@ -1,9 +1,0 @@
-{% extends 'attendance/base.html' %}
-{% block title %}シフト登録{% endblock %}
-{% block content %}
-<form method="post" class="box">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button class="button is-primary">登録</button>
-</form>
-{% endblock %}
