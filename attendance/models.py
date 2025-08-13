@@ -1,69 +1,57 @@
-from __future__ import annotations
-
-from datetime import datetime, date, time, timedelta
-from decimal import Decimal
 from django.db import models
 
-
 class Employee(models.Model):
-    code = models.CharField("社員番号", max_length=20, unique=True)
-    name = models.CharField("氏名", max_length=100)
-    hourly_rate = models.DecimalField("時給", max_digits=7, decimal_places=2, default=0)
-    is_active = models.BooleanField("在籍", default=True)
-    created_at = models.DateTimeField("作成日時", auto_now_add=True)
-    updated_at = models.DateTimeField("更新日時", auto_now=True)
+    code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    hourly_rate = models.PositiveIntegerField("時給(円)", null=True, blank=True)
 
-    class Meta:
-        ordering = ["code"]
-
-    def __str__(self) -> str:
-        return f"{self.code} {self.name}"
-
-
-class Shift(models.Model):
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="shifts", verbose_name="従業員")
-    date = models.DateField("日付")
-    start_time = models.TimeField("開始", null=True, blank=True)
-    end_time = models.TimeField("終了", null=True, blank=True)
-    note = models.CharField("備考", max_length=200, blank=True, default="")
-
-    class Meta:
-        ordering = ["date", "employee__code", "start_time"]
-
-    def __str__(self) -> str:
-        st = self.start_time.strftime("%H:%M") if self.start_time else "--:--"
-        et = self.end_time.strftime("%H:%M") if self.end_time else "--:--"
-        return f"{self.date} {self.employee} {st}-{et}"
-
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    def __str__(self): return f"{self.code} {self.name}"
 
 class Attendance(models.Model):
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="attendances", verbose_name="従業員")
-    work_date = models.DateField("勤務日", db_index=True)
-    time_in = models.TimeField("出勤", null=True, blank=True)
-    time_out = models.TimeField("退勤", null=True, blank=True)
-    note = models.CharField("備考", max_length=200, blank=True, default="")
-    created_at = models.DateTimeField("作成日時", auto_now_add=True)
-    updated_at = models.DateTimeField("更新日時", auto_now=True)
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="attendances")
+    work_date = models.DateField()
+    clock_in = models.DateTimeField(null=True, blank=True)
+    clock_out = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=255, blank=True)
 
     class Meta:
-        ordering = ["work_date", "employee__code"]
-        indexes = [models.Index(fields=["work_date", "employee"])]
-
-    def __str__(self) -> str:
-        return f"{self.work_date} {self.employee}"
-
-    @property
-    def work_hours(self) -> float:
-        """出退勤が両方ある場合の実働時間[時間]（小数）"""
-        if self.time_in and self.time_out:
-            d = datetime.combine(self.work_date, self.time_out) - datetime.combine(self.work_date, self.time_in)
-            return round(d.total_seconds() / 3600, 2)
-        return 0.0
+        constraints = [
+            models.UniqueConstraint(fields=["employee", "work_date"], name="uniq_employee_date")
+        ]
+        indexes = [models.Index(fields=["work_date"])]
 
     @property
-    def wage_amount(self) -> Decimal:
-        """概算支給額（実働×時給）"""
-        try:
-            return (Decimal(str(self.work_hours)) * (self.employee.hourly_rate or Decimal("0"))).quantize(Decimal("0.01"))
-        except Exception:
-            return Decimal("0.00")
+    def is_open(self):
+        return bool(self.clock_in and not self.clock_out)
+
+class Shift(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="shifts")
+    date = models.DateField()
+    start = models.TimeField()
+    end = models.TimeField()
+    break_minutes = models.PositiveSmallIntegerField(default=0)
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["date"])]
+        ordering = ["date", "start"]
+
+    def __str__(self):
+        return f"{self.date} {self.employee} {self.start}-{self.end}"
+    
+    def total_work_minutes(self) -> int:
+        start_dt = datetime.combine(self.date, self.start)
+        end_dt = datetime.combine(self.date, self.end)
+        if end_dt < start_dt:
+            end_dt += timedelta(days=1)  # 日跨ぎ対応
+        mins = int((end_dt - start_dt).total_seconds() // 60) - int(self.break_minutes or 0)
+        return max(mins, 0)
+
+    @property
+    def total_work_hhmm(self) -> str:
+        m = self.total_work_minutes()
+        h, mm = divmod(m, 60)
+        return f"{h}:{mm:02d}"

@@ -1,23 +1,21 @@
-﻿# --- OS / ユーザー環境 ---
-AppData/
-Thumbs.db
-.DS_Store
-
-# --- Python / Django ---
+# Python / Django
 __pycache__/
 *.pyc
-.venv/
+*.pyo
+*.pyd
+*.log
+db.sqlite3
+/media/
+staticfiles/
+
+# Envs & IDE
 venv/
 .env
-db.sqlite3
-media/
-staticfiles/
-
-# --- IDE ---
-.vscode/
+.env.*
+*.env
 .idea/
-AppData/
-Thumbs.db
+.vscode/
 
-media/
-staticfiles/
+# OS
+.DS_Store
+Thumbs.db

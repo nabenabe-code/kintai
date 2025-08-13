@@ -1,23 +1,34 @@
-{% extends "attendance/base.html" %}
+{% extends 'base.html' %}
 {% block title %}打刻{% endblock %}
 {% block content %}
-<div class="is-narrow-form">
-  <h1 class="title">打刻</h1>
-  <form method="post" class="box">
-    {% csrf_token %}
-    <div class="field">
-      <label class="label">従業員</label>
-      <div class="control">
-        {{ form.employee }}
-      </div>
-      {% if form.employee.errors %}
-      <p class="help is-danger">{{ form.employee.errors.0 }}</p>
-      {% endif %}
-    </div>
-    <div class="buttons">
-      <button class="button is-success" name="action" value="in" type="submit">出勤・しごとをはじめる</button>
-      <button class="button is-warning" name="action" value="out" type="submit">退勤・しごとをおわる</button>
-    </div>
-  </form>
-</div>
+<h1 class="title">出勤・退勤</h1>
+<p class="subtitle">本日: {{ today }}</p>
+<form method="post" class="box">
+  {% csrf_token %}
+  <div class="field">
+    <label class="label">従業員コード</label>
+    <div class="control">{{ form.employee_code }}</div>
+  </div>
+  <div class="buttons">
+    <button name="in" class="button is-primary" type="submit">出勤・しごとをはじめる</button>
+    <button name="out" class="button is-link" type="submit">退勤・しごとをおわる</button>
+  </div>
+</form>
+
+<h2 class="title is-5">最近の打刻</h2>
+<table class="table is-fullwidth is-striped">
+  <thead><tr><th>日付</th><th>従業員</th><th>出勤</th><th>退勤</th></tr></thead>
+  <tbody>
+    {% for a in recent %}
+      <tr>
+        <td>{{ a.work_date }}</td>
+        <td>{{ a.employee.name }} ({{ a.employee.code }})</td>
+        <td>{{ a.clock_in|default:'-' }}</td>
+        <td>{{ a.clock_out|default:'-' }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4">データがありません</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}

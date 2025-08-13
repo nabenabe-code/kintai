@@ -1,27 +1,16 @@
 from django.urls import path
 from . import views
 
+app_name = "attendance"
+
 urlpatterns = [
-    # トップ
-    path("", views.punch, name="punch_page"),
-    path("health/", views.healthcheck, name="healthcheck"),
-
-    # base.html が参照するURL名（全部そろえる）
-    path("attendance/list/", views.attendance_list, name="attendance_list"),
-    path("attendance/search/", views.attendance_search, name="attendance_search"),
-
-    path("shift/", views.shift_list, name="shift_list"),
-    path("shift/new/", views.shift_create, name="shift_create"),
-
-    path("employee/new/", views.employee_register, name="employee_register"),
-    path("employee/delete/", views.employee_delete, name="employee_delete"),
-
-    path("import/", views.import_hub, name="import_hub"),
-    path("import/employee/", views.employee_import, name="employee_import"),
-    path("import/shift/", views.shift_import, name="shift_import"),
-
-    path("download/", views.download_hub, name="download_hub"),
-    path("download/employees.xlsx", views.download_employees, name="employee_export"),
-    path("download/shifts.xlsx", views.download_shifts, name="shift_export"),
-    path("download/attendance.xlsx", views.download_attendance, name="attendance_export"),
+    path("", views.punch_view, name="punch"),  
+    path("employees/", views.employee_list_create_view, name="employees"),
+    path("employees/<int:pk>/delete/", views.employee_delete_view, name="employee_delete"),
+    path("shifts/", views.shifts_manage_view, name="shifts_manage"),
+    path("shifts/<int:pk>/delete/", views.shift_delete_view, name="shift_delete"),
+    path("shifts/search/", views.shift_search_view, name="shift_search"),
+    path("import/bulk/", views.import_bulk_view, name="import_bulk"),
+    path("export/employees.xlsx", views.export_employees_view, name="export_employees"),
+    path("export/shifts.xlsx", views.export_shifts_view, name="export_shifts"),
 ]

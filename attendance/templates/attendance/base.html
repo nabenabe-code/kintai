@@ -1,65 +1,34 @@
-{% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}勤怠管理{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Bulma -->
+  <title>{% block title %}勤怠管理{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
-  <style>
-    .navbar-brand .navbar-item.brand { font-weight: 700; }
-    .table-container { overflow-x: auto; }
-    .is-narrow-form { max-width: 840px; margin: 0 auto; }
-  </style>
 </head>
 <body>
-  <nav class="navbar is-light" role="navigation" aria-label="main navigation">
-    <div class="navbar-brand">
-      <a class="navbar-item brand" href="{% url 'punch_page' %}">勤怠管理</a>
-      <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
-         data-target="navMenu"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></a>
-    </div>
-    <div id="navMenu" class="navbar-menu">
-      <div class="navbar-start">
-        <a class="navbar-item" href="{% url 'punch_page' %}">打刻</a>
-        <a class="navbar-item" href="{% url 'attendance_list' %}">勤怠一覧</a>
-        <a class="navbar-item" href="{% url 'shift_list' %}">シフト（日付）</a>
-        <a class="navbar-item" href="{% url 'shift_create' %}">シフト登録</a>
-        <a class="navbar-item" href="{% url 'employee_register' %}">従業員登録</a>
-        <a class="navbar-item" href="{% url 'import_hub' %}">インポート</a>
-        <a class="navbar-item" href="{% url 'download_hub' %}">ダウンロード</a>
-      </div>
-    </div>
-  </nav>
-
   <section class="section">
     <div class="container">
+      <nav class="breadcrumb" aria-label="breadcrumbs">
+        <ul>
+          <li><a href="{% url 'attendance:punch' %}">打刻</a></li>
+          <li><a href="{% url 'attendance:employees' %}">従業員</a></li>
+          <li><a href="{% url 'attendance:import_employees' %}">Excel(従業員)</a></li>
+          <li><a href="{% url 'attendance:import_shifts' %}">Excel(シフト)</a></li>
+          <li><a href="{% url 'attendance:shift_search' %}">シフト検索</a></li>
+        </ul>
+      </nav>
+
       {% if messages %}
-        <div class="block">
-          {% for message in messages %}
-            <div class="notification {% if message.tags %}is-{{ message.tags }}{% endif %}">
-              {{ message }}
-            </div>
-          {% endfor %}
-        </div>
+      <div class="mb-4">
+        {% for message in messages %}
+          <div class="notification {% if message.tags %}is-{{ message.tags }}{% endif %}">{{ message }}</div>
+        {% endfor %}
+      </div>
       {% endif %}
+
       {% block content %}{% endblock %}
     </div>
   </section>
-
-  <script>
-    // navbar burger
-    document.addEventListener('DOMContentLoaded', () => {
-      const burgers = Array.prototype.slice.call(document.querySelectorAll('.navbar-burger'), 0);
-      burgers.forEach(el => {
-        el.addEventListener('click', () => {
-          const target = el.dataset.target;
-          const $target = document.getElementById(target);
-          el.classList.toggle('is-active'); $target.classList.toggle('is-active');
-        });
-      });
-    });
-  </script>
 </body>
 </html>

@@ -1,165 +1,173 @@
-from dataclasses import dataclass
-from datetime import date, datetime, time
-from typing import Tuple
-
 from django.utils import timezone
-from openpyxl import load_workbook
-
+from django.db import transaction
+from django.http import HttpResponse
 from .models import Employee, Attendance, Shift
+import pandas as pd
+from io import BytesIO
 
 
-# ── 打刻ユースケース ─────────────────────────
-@dataclass
 class PunchService:
-    employee: Employee
+    @staticmethod
+    def punch_by_code(code: str, action: str) -> str:
+        emp = Employee.objects.filter(code=code, is_active=True).first()
+        if not emp:
+            raise ValueError("従業員コードが見つかりません。")
+        return PunchService.punch(emp, action)
 
-    def today(self) -> Attendance:
-        d = timezone.localdate()
-        att, _ = Attendance.objects.get_or_create(employee=self.employee, work_date=d)
-        return att
-
-    def clock_in(self, now: time) -> None:
-        self.today().clock_in(now)
-
-    def clock_out(self, now: time) -> None:
-        self.today().clock_out(now)
-
-
-# ── Excel 読み込みの小ヘルパ ───────────────
-def _to_date(v) -> date | None:
-    if isinstance(v, date) and not isinstance(v, datetime):
-        return v
-    if isinstance(v, datetime):
-        return v.date()
-    if isinstance(v, str):
-        for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
-            try:
-                return datetime.strptime(v.strip(), fmt).date()
-            except ValueError:
-                continue
-    return None
-
-def _to_time(v) -> time | None:
-    if isinstance(v, time):
-        return v
-    if isinstance(v, datetime):
-        return v.time()
-    if isinstance(v, str):
-        for fmt in ("%H:%M", "%H:%M:%S"):
-            try:
-                return datetime.strptime(v.strip(), fmt).time()
-            except ValueError:
-                continue
-    return None
+    @staticmethod
+    @transaction.atomic
+    def punch(employee: Employee, action: str) -> str:
+        today = timezone.localdate()
+        now = timezone.now()
+        att, _ = Attendance.objects.get_or_create(employee=employee, work_date=today)
+        if action == "in":
+            if att.clock_in:
+                raise ValueError("本日はすでに出勤済みです。")
+            att.clock_in = now
+            att.save(update_fields=["clock_in"])
+            return f"{employee.name} さん、出勤を記録しました。"
+        if action == "out":
+            if not att.clock_in:
+                raise ValueError("本日は出勤が未記録です。")
+            if att.clock_out:
+                raise ValueError("本日はすでに退勤済みです。")
+            att.clock_out = now
+            att.save(update_fields=["clock_out"])
+            return f"{employee.name} さん、退勤を記録しました。"
+        raise ValueError("不正な操作です。")
 
 
-# ── 従業員インポート ───────────────────────
-class EmployeeImporter:
-    REQUIRED = {'code', 'hourly_rate'}
+class EmployeeExcelImporter:
+    REQUIRED_COLS = ["code", "name"]
 
-    def run(self, file) -> Tuple[int, int, int]:
-        wb = load_workbook(filename=file, data_only=True)
-        ws = wb.active
-        header = {str(c.value).strip(): i for i, c in enumerate(ws[1], 1) if c.value is not None}
-        names = {k.lower(): i for k, i in header.items()}
-        if not self.REQUIRED.issubset(names.keys()):
-            raise ValueError('必須列 code / hourly_rate がありません。')
+    def __init__(self, file):
+        self.file = file
 
-        created = updated = skipped = 0
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            raw_code = row[names['code'] - 1] if names.get('code') else None
-            code = (str(raw_code).strip() if raw_code is not None else '')
-            if not code:
-                skipped += 1
-                continue
+    def run(self):
+        df = pd.read_excel(self.file)
+        miss = [c for c in self.REQUIRED_COLS if c not in df.columns]
+        if miss:
+            raise ValueError(f"従業員Excelに必要な列がありません: {miss}")
 
-            name = row[names['name'] - 1] if names.get('name') else ''
-            hourly = row[names['hourly_rate'] - 1]
-            try:
-                hourly_val = float(hourly)
-            except (TypeError, ValueError):
-                skipped += 1
-                continue
+        # 「時給」 or 「hourly_rate」どちらでも受け付ける
+        hourly_col = None
+        for cand in ("時給", "hourly_rate", "wage"):
+            if cand in df.columns:
+                hourly_col = cand
+                break
 
-            emp, is_new = Employee.objects.get_or_create(code=code)
-            if name:
-                emp.name = str(name)
-            emp.hourly_rate = hourly_val
-            emp.is_active = True  # 取込時は在籍ONに戻す運用
-            emp.save()
-            created += int(is_new)
-            updated += int(not is_new)
+        created = updated = 0
+        for _, r in df.iterrows():
+            code = str(r["code"]).strip()
+            name = str(r["name"]).strip()
+            hourly = None
+            if hourly_col is not None:
+                val = r.get(hourly_col)
+                if pd.notna(val):
+                    try:
+                        hourly = int(float(val))  # "1200", 1200.0 などを整数化
+                    except Exception:
+                        raise ValueError(f"時給の値が不正です: {val}")
 
-        return created, updated, skipped
+            obj, is_created = Employee.objects.update_or_create(
+                code=code,
+                defaults={"name": name, "hourly_rate": hourly}
+            )
+            created += int(is_created)
+            updated += int(not is_created)
+        return {"created": created, "updated": updated}
 
 
-# ── シフトインポート ───────────────────────
-class ShiftImporter:
-    REQUIRED = {'code', 'date', 'start', 'end'}
+class ShiftExcelImporter:
+    REQUIRED_COLS = ["date", "employee_code", "start", "end"]
 
-    def run(self, file) -> Tuple[int, int, int]:
-        wb = load_workbook(filename=file, data_only=True)
-        ws = wb.active
-        header = {str(c.value).strip(): i for i, c in enumerate(ws[1], 1) if c.value is not None}
-        names = {k.lower(): i for k, i in header.items()}
-        if not self.REQUIRED.issubset(names.keys()):
-            raise ValueError('必須列 code / date / start / end が見つかりません。')
+    def __init__(self, file):
+        self.file = file
 
-        c_code = names['code']; c_date = names['date']; c_start = names['start']; c_end = names['end']
-        c_note = names.get('note')
+    def run(self):
+        df = pd.read_excel(self.file)
+        miss = [c for c in self.REQUIRED_COLS if c not in df.columns]
+        if miss:
+            raise ValueError(f"シフトExcelに必要な列がありません: {miss}")
 
-        created = updated = skipped = 0
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            raw_code = row[c_code - 1]
-            code = (str(raw_code).strip() if raw_code is not None else '')
-            if not code:
-                skipped += 1
-                continue
-            try:
-                emp = Employee.objects.get(code=code)
-            except Employee.DoesNotExist:
-                skipped += 1
-                continue
+        created = 0
+        for _, r in df.iterrows():
+            emp = Employee.objects.filter(code=str(r["employee_code"]).strip()).first()
+            if not emp:
+                raise ValueError(f"従業員コードが存在しません: {r['employee_code']}")
+            start = pd.to_datetime(r["start"]).time()
+            end = pd.to_datetime(r["end"]).time()
+            date = pd.to_datetime(r["date"]).date()
+            break_minutes = int(r.get("break_minutes", 0) or 0)
+            Shift.objects.update_or_create(
+                employee=emp, date=date, start=start,
+                defaults={"end": end, "break_minutes": break_minutes}
+            )
+            created += 1
+        return {"created": created}
 
-            d = _to_date(row[c_date - 1])
-            st = _to_time(row[c_start - 1])
-            ed = _to_time(row[c_end - 1])
-            note = row[c_note - 1] if c_note else ''
-            if not (d and st and ed):
-                skipped += 1
-                continue
 
-            obj, is_new = Shift.objects.get_or_create(employee=emp, date=d)
-            obj.start_time = st
-            obj.end_time = ed
-            obj.note = str(note or '')
-            obj.save()
-            created += int(is_new)
-            updated += int(not is_new)
+class ExcelExporter:
+    @staticmethod
+    def employee_template_df():
+        return pd.DataFrame([
+            {"code": "E001", "name": "山田太郎", "時給": 1200},
+            {"code": "E002", "name": "佐藤花子", "時給": 1300},
+        ])
 
-        return created, updated, skipped
+    @staticmethod
+    def shift_template_df():
+        return pd.DataFrame([
+            {"date": "2025-08-13", "employee_code": "E001", "start": "09:00", "end": "18:00", "break_minutes": 60},
+        ])
 
-try:
-    EmployeeExcelImporter  # すでにあれば何もしない
-except NameError:
-    try:
-        EmployeeExcelImporter = EmployeeImporter  # 既存名→旧名の別名
-    except NameError:
-        pass
+    @staticmethod
+    def employees_df():# Excelはtz付きdatetimeが苦手なのでJST文字列にして安全に出力
+        rows = []
+        for e in Employee.objects.order_by("code"):
+            rows.append({
+                "code": e.code,
+                "name": e.name,
+                "時給": e.hourly_rate,  # 日本語列名
+                "is_active": e.is_active,
+                "created_at": timezone.localtime(e.created_at).strftime("%Y-%m-%d %H:%M:%S"),
+                "updated_at": timezone.localtime(e.updated_at).strftime("%Y-%m-%d %H:%M:%S"),
+            })
+        return pd.DataFrame(rows)
 
-try:
-    ShiftExcelImporter
-except NameError:
-    try:
-        ShiftExcelImporter = ShiftImporter
-    except NameError:
-        pass
+    @staticmethod
+    def shifts_df(date=None):
+        qs = Shift.objects.select_related("employee").order_by("date", "start")
+        if date:
+            qs = qs.filter(date=date)
+        rows = []
+        for s in qs:
+            rows.append({
+                "employee_code": s.employee.code,
+                "employee_name": s.employee.name,
+                "date": s.date,
+                "start": s.start.strftime("%H:%M"),
+                "end": s.end.strftime("%H:%M"),
+                "break_minutes": s.break_minutes,
+                "note": s.note,
+            })
+        return pd.DataFrame(rows)
 
-# __all__ を使っているなら公開名に追加（なければ無視される）
-try:
-    __all__
-except NameError:
-    __all__ = []
-for _n in ["EmployeeExcelImporter", "ShiftExcelImporter"]:
-    if _n not in __all__:
-        __all__.append(_n)
+    @staticmethod
+    def df_to_xlsx_response(df, filename: str) -> HttpResponse:
+        try:
+            for col in df.select_dtypes(include=["datetimetz"]).columns:   # 念のため tz-aware が紛れても外す保険
+                df[col] = df[col].dt.tz_localize(None)
+        except Exception:
+            pass
+
+        bio = BytesIO()
+        with pd.ExcelWriter(bio, engine="openpyxl") as w:
+            df.to_excel(w, index=False)
+        bio.seek(0)
+        resp = HttpResponse(
+            bio.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return resp
