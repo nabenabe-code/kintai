@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}従業員{% endblock %}
+
+{% block content %}
+<div class="level">
+  <div class="level-left"><h1 class="title">従業員 追加・一覧</h1></div>
+  <div class="level-right">
+    <a class="button is-small" href="{% url 'attendance:export_employees' %}">Excelダウンロード</a>
+  </div>
+</div>
+
+<div class="columns">
+  <div class="column is-half">
+    <form method="post" class="box">
+      {% csrf_token %}
+      {{ form.as_p }}  {# ← EmployeeForm 側で is_active を外しているので表示されません #}
+      <button class="button is-primary" type="submit">登録</button>
+    </form>
+  </div>
+
+  <div class="column">
+    <table class="table is-fullwidth is-striped">
+      <thead>
+        <tr><th>コード</th><th>氏名</th><th>時給</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for e in employees %}
+        <tr>
+          <td>{{ e.code }}</td>
+          <td>{{ e.name }}</td>
+          <td>
+            {% if e.hourly_rate %}
+              {{ e.hourly_rate|intcomma }}円
+            {% else %}-{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{% url 'attendance:employee_delete' e.pk %}">
+              {% csrf_token %}
+              <button class="button is-small is-danger" onclick="return confirm('削除しますか？')">削除</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">データがありません</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

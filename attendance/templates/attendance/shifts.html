@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}シフト検索{% endblock %}
+{% block content %}
+<h1 class="title">シフト検索（年月日）</h1>
+<form method="get" class="box">
+  {{ form.as_p }}
+  <div class="buttons">
+    <button class="button is-link" type="submit">検索</button>
+    <a class="button is-small" href="{% url 'attendance:export_shifts' %}{% if request.GET.date %}?date={{ request.GET.date }}{% endif %}">Excelダウンロード</a>
+  </div>
+</form>
+<table class="table is-fullwidth is-striped">
+  <thead><tr><th>従業員</th><th>日付</th><th>開始</th><th>終了</th><th>休憩(分)</th><th>メモ</th></tr></thead>
+  <tbody>
+    {% for s in shifts %}
+      <tr>
+        <td>{{ s.employee.name }} ({{ s.employee.code }})</td>
+        <td>{{ s.date }}</td>
+        <td>{{ s.start }}</td>
+        <td>{{ s.end }}</td>
+        <td>{{ s.break_minutes }}</td>
+        <td>{{ s.note }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">該当データなし</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

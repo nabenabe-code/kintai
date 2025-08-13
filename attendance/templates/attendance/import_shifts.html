@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}シフトインポート{% endblock %}
+{% block content %}
+<h1 class="title">Excel でシフトを登録</h1>
+<div class="block">
+  <a class="button is-small" href="{% url 'attendance:shift_template' %}">テンプレートをダウンロード</a>
+</div>
+<form method="post" enctype="multipart/form-data" class="box">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="button is-primary" type="submit">インポート</button>
+</form>
+<p class="content">
+列名: <code>date</code> (YYYY-MM-DD), <code>employee_code</code>, <code>start</code> (HH:MM), <code>end</code> (HH:MM), (任意) <code>break_minutes</code>
+</p>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}シフト管理{% endblock %}
+{% block content %}
+<div class="level">
+  <div class="level-left"><h1 class="title">シフト 管理</h1></div>
+  <div class="level-right">
+    <a class="button is-small" href="{% url 'attendance:export_shifts' %}">Excelダウンロード</a>
+  </div>
+</div>
+<div class="columns">
+  <div class="column is-half">
+    <form method="post" class="box">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="buttons">
+        <button class="button is-primary" type="submit">登録</button>
+      </div>
+    </form>
+  </div>
+  <div class="column">
+    <table class="table is-fullwidth is-striped">
+      <thead>
+  <tr>
+    <th>従業員</th><th>日付</th><th>開始</th><th>終了</th>
+    <th>休憩(分)</th><th>合計(時間)</th><th>メモ</th><th></th>
+  </tr>
+</thead>
+<tbody>
+  {% for s in shifts %}
+  <tr>
+    <td>{{ s.employee.name }} ({{ s.employee.code }})</td>
+    <td>{{ s.date }}</td>
+    <td>{{ s.start }}</td>
+    <td>{{ s.end }}</td>
+    <td>{{ s.break_minutes }}</td>
+    <td>{{ s.total_work_hhmm }}</td>  <!-- ★ 合計 -->
+    <td>{{ s.note }}</td>
+    <td>
+      <form method="post" action="{% url 'attendance:shift_delete' s.pk %}">{% csrf_token %}
+        <button class="button is-small is-danger" onclick="return confirm('削除しますか？')">削除</button>
+      </form>
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="8">データがありません</td></tr>
+  {% endfor %}
+</tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

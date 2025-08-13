@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% load humanize %} 
+
+{% block title %}従業員{% endblock %}
+...
+<td>
+  {% if e.hourly_rate %}
+    {{ e.hourly_rate|intcomma }}円
+  {% else %}-{% endif %}
+</td>
+
+{% block title %}従業員インポート{% endblock %}
+{% block content %}
+<h1 class="title">Excel で従業員を登録</h1>
+<div class="block">
+  <a class="button is-small" href="{% url 'attendance:employee_template' %}">テンプレートをダウンロード</a>
+</div>
+<form method="post" enctype="multipart/form-data" class="box">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="button is-primary" type="submit">インポート</button>
+</form>
+<p class="content">
+列名: <code>code</code>, <code>name</code>, (任意) <code>hourly_rate</code>
+</p>
+{% endblock %}

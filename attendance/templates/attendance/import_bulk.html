@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Excel一括登録{% endblock %}
+{% block content %}
+<h1 class="title">Excel一括登録（従業員 & シフト）</h1>
+<form method="post" enctype="multipart/form-data" class="box">
+  {% csrf_token %}
+  <div class="field">
+    <label class="label">従業員Excel (.xlsx)</label>
+    <div class="control">{{ form.employees_file }}</div>
+    <p class="help">列: <code>code</code>, <code>name</code>, (任意) <code>hourly_rate</code></p>
+  </div>
+  <div class="field">
+    <label class="label">シフトExcel (.xlsx)</label>
+    <div class="control">{{ form.shifts_file }}</div>
+    <p class="help">列: <code>date</code>, <code>employee_code</code>, <code>start</code>, <code>end</code>, (任意) <code>break_minutes</code></p>
+  </div>
+  <div class="buttons">
+    <button class="button is-primary" type="submit">インポート</button>
+  </div>
+</form>
+{% endblock %}

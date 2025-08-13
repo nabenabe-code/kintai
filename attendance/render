@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: kintai
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn kintai.wsgi:application
+    postDeployCommand: python manage.py migrate
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kintai-db
+          property: connectionString
+
+databases:
+  - name: kintai-db
+    plan: free
