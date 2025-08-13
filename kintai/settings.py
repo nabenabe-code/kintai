@@ -15,7 +15,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
 DEBUG = getenv_bool("DEBUG", True)  # 本番では環境変数で False に
 
 # 例: ALLOWED_HOSTS="127.0.0.1,localhost,example.onrender.com"
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com"]
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1", "http://localhost", "https://*.onrender.com"]
+
 
 # 例: CSRF_TRUSTED_ORIGINS="http://127.0.0.1,http://localhost,https://*.onrender.com,https://your-domain.example"
 CSRF_TRUSTED_ORIGINS = [
