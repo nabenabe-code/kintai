@@ -76,13 +76,13 @@ web上でも作れますが、相互的に登録できることにより、他�
 ## 使用技術一覧
 **バックエンド:** 言語: Python 3.x（プロジェクトでは 3.13 で動作確認）/ フレームワーク: Django 5.2
 
-**フロントエンド:** テンプレート: Django Template Language  UI フレームワーク: Bulma（CDN読み込み）
+**フロントエンド:** テンプレート: Django Template Language  /UI フレームワーク: Bulma（CDN読み込み）
 
 **インフラ:** Render.com  
 
 **データベース:** SQLite  
 
-**環境構築:** VScode
+**環境構築:** VScode・github
 
   
   
